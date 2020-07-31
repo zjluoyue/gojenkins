@@ -101,40 +101,58 @@ func (j *Jenkins) SafeRestart() error {
 // Example : jenkins.CreateNode("nodeName", 1, "Description", "/var/lib/jenkins", "jdk8 docker", map[string]string{"method": "JNLPLauncher"})
 // By Default JNLPLauncher is created
 // Multiple labels should be separated by blanks
+// SshHostKeyVerificationStrategy type
+// Example:
+// hudson.plugins.sshslaves.verifiers.KnownHostsFileKeyVerificationStrategy
+// hudson.plugins.sshslaves.verifiers.ManuallyProvidedKeyVerificationStrategy
+// hudson.plugins.sshslaves.verifiers.ManuallyTrustedKeyVerificationStrategy
+// hudson.plugins.sshslaves.verifiers.NonVerifyingKeyVerificationStrategy
+// {
+//	   "$class": "hudson.plugins.sshslaves.verifiers.ManuallyTrustedKeyVerificationStrategy",
+//	   "stapler-class": "hudson.plugins.sshslaves.verifiers.ManuallyTrustedKeyVerificationStrategy",
+// }
+//		only ManuallyTrustedKeyVerificationStrategy
+//	   "requireInitialManualTrust": true
 func (j *Jenkins) CreateNode(name string, numExecutors int, description string, remoteFS string, label string, options ...interface{}) (*Node, error) {
-	params := map[string]string{"method": "JNLPLauncher"}
+	params := map[string]interface{}{"method": "JNLPLauncher"}
 
 	if len(options) > 0 {
-		params, _ = options[0].(map[string]string)
+		params, _ = options[0].(map[string]interface{})
 	}
 
 	if _, ok := params["method"]; !ok {
 		params["method"] = "JNLPLauncher"
 	}
-
+	if _, ok := params["sshStrategy"]; !ok {
+		params["sshStrategy"] = map[string]string{
+			"stapler-class": "hudson.plugins.sshslaves.verifiers.KnownHostsFileKeyVerificationStrategy",
+			"$class":        "hudson.plugins.sshslaves.verifiers.KnownHostsFileKeyVerificationStrategy",
+		}
+	}
 	method := params["method"]
-	var launcher map[string]string
+	var launcher map[string]interface{}
 	switch method {
 	case "":
 		fallthrough
 	case "JNLPLauncher":
-		launcher = map[string]string{"stapler-class": "hudson.slaves.JNLPLauncher"}
+		launcher = map[string]interface{}{"stapler-class": "hudson.slaves.JNLPLauncher"}
 	case "SSHLauncher":
-		launcher = map[string]string{
-			"stapler-class":        "hudson.plugins.sshslaves.SSHLauncher",
-			"$class":               "hudson.plugins.sshslaves.SSHLauncher",
-			"host":                 params["host"],
-			"port":                 params["port"],
-			"credentialsId":        params["credentialsId"],
-			"jvmOptions":           params["jvmOptions"],
-			"javaPath":             params["javaPath"],
-			"prefixStartSlaveCmd":  params["prefixStartSlaveCmd"],
-			"suffixStartSlaveCmd":  params["suffixStartSlaveCmd"],
-			"maxNumRetries":        params["maxNumRetries"],
-			"retryWaitTime":        params["retryWaitTime"],
-			"lanuchTimeoutSeconds": params["lanuchTimeoutSeconds"],
-			"type":                 "hudson.slaves.DumbSlave",
-			"stapler-class-bag":    "true"}
+		launcher = map[string]interface{}{
+			"stapler-class":                  "hudson.plugins.sshslaves.SSHLauncher",
+			"$class":                         "hudson.plugins.sshslaves.SSHLauncher",
+			"host":                           params["host"],
+			"port":                           params["port"],
+			"credentialsId":                  params["credentialsId"],
+			"sshHostKeyVerificationStrategy": params["sshStrategy"],
+			"jvmOptions":                     params["jvmOptions"],
+			"javaPath":                       params["javaPath"],
+			"prefixStartSlaveCmd":            params["prefixStartSlaveCmd"],
+			"suffixStartSlaveCmd":            params["suffixStartSlaveCmd"],
+			"maxNumRetries":                  params["maxNumRetries"],
+			"retryWaitTime":                  params["retryWaitTime"],
+			"lanuchTimeoutSeconds":           params["lanuchTimeoutSeconds"],
+			"type":                           "hudson.slaves.DumbSlave",
+			"stapler-class-bag":              "true"}
 	default:
 		return nil, errors.New("launcher method not supported")
 	}
